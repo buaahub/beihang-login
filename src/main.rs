@@ -110,10 +110,10 @@ fn main() {
     -H 'Sec-Fetch-Site: none' \
     -H 'Accept-Language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7,zh-TW;q=0.6' \
     -H 'Cookie: pgv_pvi=2381688832; AD_VALUE=8751256e; cookie=0; lang=zh-CN; user=$USERNAME' \
-    'https://gw.buaa.edu.cn/index_1.html?ad_check=1'`
+    'https://gw.buaa.edu.cn/index_1.html'`
      */
     let result = client
-        .get("https://gw.buaa.edu.cn/index_1.html?ad_check=1")
+        .get("https://gw.buaa.edu.cn/index_1.html")
         .set("Host", "gw.buaa.edu.cn")
         .set("Upgrade-Insecure-Requests", "1")
         .set("Sec-Fetch-Mode", "navigate")
@@ -138,12 +138,8 @@ fn main() {
     AC_ID=${RESULT#*ac_id=}
     AC_ID=1
     echo "AC_ID: "$AC_ID */
-    let ac_id: u32 = result
-        .get_url()
-        .split("ac_id=")
-        .nth(1)
-        .and_then(|s| s.split('&').next())
-        .and_then(|s| s.parse().ok())
+    let page_body = result.into_string().unwrap_or_default();
+    let ac_id: u32 = parse_ac_id_from_text(&page_body)
         .unwrap_or(67);
 
     /*# Get challenge number
@@ -325,7 +321,7 @@ fn login(
             "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7,zh-TW;q=0.6",
         )
         .query_pairs([
-            ("callback", "jQuery112407419864172676014_1566720734115"),
+            ("callback", "jQuery1102029489536262501803_1777534232102"),
             ("action", "login"),
             ("username", env.username.as_str()),
             ("password", &format!("{{MD5}}{}", pwd)),
@@ -386,7 +382,7 @@ fn logout(client: &Agent, env: &UsernamePassword, ac_id: u32, client_ip: &str) {
             "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7,zh-TW;q=0.6",
         )
         .query_pairs([
-            ("callback", "jQuery112407419864172676014_1566720734115"),
+            ("callback", "jQuery110209597091739429471_1777534132746"),
             ("action", "logout"),
             ("username", env.username.as_str()),
             ("ac_id", &ac_id.to_string()),
@@ -483,4 +479,17 @@ fn l(str: &[u8], key: &[u8]) -> Vec<u8> {
         v.push(code4 as u8);
     }
     v
+}
+
+fn parse_ac_id_from_text(text: &str) -> Option<u32> {
+    let idx = text.find("ac_id=")?;
+    let digits: String = text[idx + "ac_id=".len()..]
+        .chars()
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
+    if digits.is_empty() {
+        None
+    } else {
+        digits.parse().ok()
+    }
 }
